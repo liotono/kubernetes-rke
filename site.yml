@@ -1,0 +1,158 @@
+
+- name: Updating master and worker nodes
+  hosts: all
+  become: yes
+  tasks:
+  - apt:
+      update_cache: yes
+      upgrade: dist
+
+- name: Rebooting nodes and waiting for them to become available
+  hosts: all
+  become: yes
+  tasks:
+  - reboot:
+      msg: "Reboot initiated by Ansible"
+      connect_timeout: 5
+      post_reboot_delay: 30
+
+- name: Making sure the appropiate kernel modules are present
+  hosts: kubernetes_nodes
+  become: yes
+  tasks:
+  - name: Loading kernel modules
+    modprobe:
+      name: "{{ item }}"
+      state: present
+    with_items:
+    - br_netfilter
+    - ip6_udp_tunnel
+    - ip_set
+    - ip_set_hash_ip
+    - ip_set_hash_net
+    - iptable_filter
+    - iptable_nat
+    - iptable_mangle
+    - iptable_raw
+    - nf_conntrack_netlink
+    - nf_conntrack
+    - nf_conntrack_ipv4
+    - nf_defrag_ipv4
+    - nf_nat
+    - nf_nat_ipv4
+    - nf_nat_masquerade_ipv4
+    - nfnetlink
+    - udp_tunnel
+    - veth
+    - vxlan
+    - x_tables
+    - xt_addrtype
+    - xt_conntrack
+    - xt_comment
+    - xt_mark
+    - xt_multiport
+    - xt_nat
+    - xt_recent
+    - xt_set
+    - xt_statistic
+    - xt_tcpudp
+  - name: Making kernel modules load persistent
+    copy:
+      src: kubernetes.conf
+      dest: /etc/modules-load.d/
+
+- name: Setting kernel parameter net.bridge.bridge-nf-call-iptables
+  hosts: kubernetes_nodes
+  become: yes
+  tasks:
+  - name: Load br_netfilter kernel module
+    modprobe:
+      name: br_netfilter
+      state: present
+  - name: Adding the module br_netfilter to /etc/modules-load.d/modules.conf
+    lineinfile:
+      backup: yes
+      create: yes
+      line: br_netfilter
+      path: /etc/modules-load.d/modules.conf
+  - name: Setting sysctl net.bridge.bridge-nf-call-iptables to 1
+    sysctl:
+      value: "1"
+      name: net.bridge.bridge-nf-call-iptables
+      reload: yes
+
+- name: Disabling swap on worker nodes
+  hosts: workers
+  become: yes
+  tasks:
+  - name: Disabling swap on worker nodes
+    shell:
+      cmd: "swapoff -a"
+  - name: Commenting swap entries in /etc/fstab
+    replace:
+      path: /etc/fstab
+      regexp: '^([^#].+[\t ]+swap[\t ]+.+)$'
+      replace: '#\1'
+      backup: yes
+
+- name: Installing docker on the worker nodes
+  hosts: kubernetes_nodes
+  become: yes
+  tasks:
+  - name: Installing docker
+    apt:
+      name: docker.io
+      state: latest
+  - name: Adding vagrant user to the docker group
+    user:
+      name: vagrant
+      append: yes
+      groups: docker
+
+- name: Downloading the RKE binary file
+  hosts: k8s-master-1
+  become: yes
+  tasks:
+  - get_url:
+      url: https://github.com/rancher/rke/releases/download/v{{ rke_version }}/rke_linux-amd64
+      dest: /usr/local/bin/rke
+      mode: ug+x
+      owner: vagrant
+      group: vagrant
+  tags:
+  - download_rke
+
+- name: Generating private and public key for the cluster
+  hosts: k8s-master-1
+  tasks:
+  - name: Checking if the private key already exists
+    stat:
+      path: "~/.ssh/id_rsa"
+    register: private_key
+  - name: Generating a new private and private key
+    openssh_keypair:
+      path: "~/.ssh/id_rsa"
+      type: rsa
+      size: 4096
+      state: present
+    when: not private_key.stat.exists
+  tags:
+  - ssh_keys
+
+- name: Distributing the private and public keys to the master and worker nodes
+  hosts: kubernetes_nodes
+  tasks:
+  - name: Fetching the public key to localhost
+    fetch:
+      src: "~/.ssh/id_rsa.pub"
+      dest: id_rsa.pub
+      flat: yes
+    delegate_to: k8s-master-1
+  - name: Copying public key to master and worker nodes
+    authorized_key:
+      key: "{{ lookup('file', lookup('env','PWD') + '/id_rsa.pub') }}"
+      user: vagrant
+  tags:
+  - ssh_keys
+  - distributing_ssh_keys
+
