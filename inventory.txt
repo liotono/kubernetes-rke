@@ -2,15 +2,12 @@
 k8s-master-1 ansible_host=k8s-master-1
 k8s-master-2 ansible_host=k8s-master-2
 k8s-master-3 ansible_host=k8s-master-3
-
 k8s-worker-1 ansible_host=k8s-worker-1
 k8s-worker-2 ansible_host=k8s-worker-2
 k8s-worker-3 ansible_host=k8s-worker-3
 k8s-worker-4 ansible_host=k8s-worker-4
 k8s-worker-5 ansible_host=k8s-worker-5
 k8s-worker-6 ansible_host=k8s-worker-6
-
-k8s-lb ansible_host=k8s-lb
 
 [masters]
 k8s-master-[1:3]

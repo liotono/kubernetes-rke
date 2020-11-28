@@ -6,6 +6,8 @@
   - apt:
       update_cache: yes
       upgrade: dist
+  tags:
+  - update_nodes
 
 - name: Rebooting nodes and waiting for them to become available
   hosts: all
@@ -15,6 +17,8 @@
       msg: "Reboot initiated by Ansible"
       connect_timeout: 5
       post_reboot_delay: 30
+  tags:
+  - reboot_nodes
 
 - name: Making sure the appropiate kernel modules are present
   hosts: kubernetes_nodes
@@ -60,6 +64,9 @@
     copy:
       src: kubernetes.conf
       dest: /etc/modules-load.d/
+  tags:
+  - install_kubernetes
+  - load_kernel_modules
 
 - name: Setting kernel parameter net.bridge.bridge-nf-call-iptables
   hosts: kubernetes_nodes
@@ -80,6 +87,9 @@
       value: "1"
       name: net.bridge.bridge-nf-call-iptables
       reload: yes
+  tags:
+  - set_kernel_parameters
+  - install_kubernetes
 
 - name: Disabling swap on worker nodes
   hosts: workers
@@ -94,6 +104,9 @@
       regexp: '^([^#].+[\t ]+swap[\t ]+.+)$'
       replace: '#\1'
       backup: yes
+  tags:
+  - install_kubernetes
+  - disable_swap_workers
 
 - name: Installing docker on the worker nodes
   hosts: kubernetes_nodes
@@ -110,6 +123,7 @@
       groups: docker
   tags:
   - installing_docker
+  - install_kubernetes
 
 - name: Downloading the RKE binary file
   hosts: k8s-master-1
@@ -123,6 +137,7 @@
       group: vagrant
   tags:
   - download_rke
+  - install_kubernetes
 
 - name: Generating private and public key for the cluster
   hosts: k8s-master-1
@@ -139,24 +154,33 @@
       state: present
     when: not private_key.stat.exists
   tags:
-  - ssh_keys
+  - ssh_key
+  - generate_ssh_key
+  - install_kubernetes
 
 - name: Distributing the private and public keys to the master and worker nodes
-  hosts: kubernetes_nodes
+  hosts: k8s-master-1
   tasks:
   - name: Fetching the public key to localhost
     fetch:
       src: "~/.ssh/id_rsa.pub"
       dest: id_rsa.pub
       flat: yes
-    delegate_to: k8s-master-1
-  - name: Copying public key to master and worker nodes
-    authorized_key:
+  tags:
+  - ssh_key
+  - fetch_ssh_key
+  - install_kubernetes
+
+- name: Copying public key to master and worker nodes
+  hosts: kubernetes_nodes
+  tasks:
+  - authorized_key:
       key: "{{ lookup('file', lookup('env','PWD') + '/id_rsa.pub') }}"
       user: vagrant
   tags:
   - ssh_keys
-  - distributing_ssh_keys
+  - distributing_ssh_key
+  - install_kubernetes
 
 - name: Downloading the kubectl binary file
   hosts: k8s-master-1
@@ -168,6 +192,9 @@
       mode: ug+x
       owner: vagrant
       group: vagrant
+  tags:
+  - install_kubernetes
+  - install_kubectl
 
 - name: Copying the cluster.yml file to k8s-master-1
   hosts: k8s-master-1
@@ -175,3 +202,6 @@
   - copy:
       src: cluster.yml
       dest: cluster.yml
+  tags:
+  - install_kubernetes
+  - deploy_rke_manifest
