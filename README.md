@@ -1,6 +1,6 @@
 # kubernetes-rke
 
-This project helps you to bootstrap an environment so you can install kubernetes on it. It uses Vagrant, Ansible, libvirt and RKE.
+This project helps you bootstrap an environment so you can install kubernetes on it. It uses Vagrant, Ansible, libvirt and RKE.
 
 # Steps to install kubernetes
 
