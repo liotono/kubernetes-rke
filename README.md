@@ -5,7 +5,7 @@ This project helps you bootstrap an environment so you can install kubernetes on
 # Steps to install kubernetes
 
 1. After cloning the repository, issue: vagrant up. This will create the master and worker nodes specified in the Vagrantfile. 
-1. Execute the playbook in site.yml. This will do the following:
+1. Execute the playbook site.yml using the inventory file inventory.txt. This will do the following:
   1. Update the kubernetes nodes and reboot them to apply updates.
   1. Load the necessary kernel modules to install kubernetes.
   1. Set the necessary kernel parameters to install kubernetes.
