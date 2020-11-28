@@ -108,6 +108,8 @@
       name: vagrant
       append: yes
       groups: docker
+  tags:
+  - installing_docker
 
 - name: Downloading the RKE binary file
   hosts: k8s-master-1
@@ -156,3 +158,20 @@
   - ssh_keys
   - distributing_ssh_keys
 
+- name: Downloading the kubectl binary file
+  hosts: k8s-master-1
+  become: yes
+  tasks:
+  - get_url:
+      url: https://storage.googleapis.com/kubernetes-release/release/v{{ kubectl_version }}/bin/linux/amd64/kubectl
+      dest: /usr/local/bin/kubectl
+      mode: ug+x
+      owner: vagrant
+      group: vagrant
+
+- name: Copying the cluster.yml file to k8s-master-1
+  hosts: k8s-master-1
+  tasks:
+  - copy:
+      src: cluster.yml
+      dest: cluster.yml

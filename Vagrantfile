@@ -9,7 +9,6 @@ WORKER_NODES = 6
 
 IPSTART_MASTER = 10
 IPSTART_WORKER = 30
-IPSTART_LB = 50
 
 Vagrant.configure("2") do |config|
 
@@ -45,17 +44,6 @@ Vagrant.configure("2") do |config|
         domain.memory = 3072
         domain.cpus = 1
       end
-    end
-  end
-
-  # Creating the LB node
-  config.vm.define "k8s-lb" do |box|
-    box.vm.hostname = "k8s-lb"
-    box.vm.synced_folder ".", "/vagrant", disabled: true
-    box.vm.network :private_network, ip: "192.168.5.#{IPSTART_LB}", :netmask => "255.255.255.0"
-    box.vm.provider :libvirt do |domain|
-      domain.memory = 1024
-      domain.cpus = 1
     end
   end
 
